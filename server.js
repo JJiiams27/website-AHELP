@@ -2,12 +2,24 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 const app = express();
 const db = new sqlite3.Database('users.db');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 
 app.use(express.json());
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(express.static(path.join(__dirname, 'improved-website-v14')));
+
+app.get('/', (req, res) => {
+  res.render('index');
+});
+
+app.get('/login', (req, res) => {
+  res.render('login');
+});
 
 // Ensure Users table exists and contains admin flag
 const createTable = `CREATE TABLE IF NOT EXISTS users (

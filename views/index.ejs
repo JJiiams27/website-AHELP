@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AHELP – Empower Your Wellness Journey</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="text-gray-700 antialiased">
+    <%- include('partials/nav') %>
+    <section class="pt-24 pb-16">
+        <div class="max-w-7xl mx-auto px-4">
+            <h1 class="text-4xl font-extrabold mb-6">Welcome to AHELP</h1>
+            <p class="mb-8">Track your wellness and earn rewards.</p>
+            <button id="show-challenges" class="px-4 py-2 bg-purple-500 text-white rounded">View Challenges</button>
+        </div>
+    </section>
+    <section id="progress" class="max-w-7xl mx-auto px-4 pb-16">
+        <canvas id="activity-chart" class="w-full h-64"></canvas>
+    </section>
+    <%- include('partials/footer') %>
+    <%- include('partials/modal') %>
+    <script>
+        // Mobile navigation toggle
+        document.getElementById('menu-btn').addEventListener('click', () => {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        });
+
+        // Load progress dynamically
+        const ctx = document.getElementById('activity-chart').getContext('2d');
+        fetch('/api/progress?user_id=1').then(res => res.json()).then(data => {
+            const weekly = data.weekly ? JSON.parse(data.weekly) : [0,0,0,0,0,0,0];
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+                    datasets: [{
+                        label: 'Minutes',
+                        data: weekly,
+                        borderColor: '#a855f7',
+                        backgroundColor: 'rgba(168,85,247,0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: { plugins: { legend: { display: false } } }
+            });
+        });
+
+        // Modal logic
+        const modal = document.getElementById('challenge-modal');
+        document.getElementById('show-challenges').addEventListener('click', () => {
+            fetch('/api/challenges?user_id=1').then(res => res.json()).then(items => {
+                const list = document.getElementById('challenge-list');
+                list.innerHTML = '';
+                items.forEach(c => {
+                    const li = document.createElement('li');
+                    li.textContent = c.title;
+                    list.appendChild(li);
+                });
+                modal.classList.remove('hidden');
+            });
+        });
+        document.getElementById('close-modal').addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AHELP – Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="text-gray-700 antialiased">
+    <%- include('partials/nav') %>
+    <div class="pt-24 max-w-md mx-auto px-4">
+        <h1 class="text-2xl font-bold mb-4">Login</h1>
+        <form id="login-form" class="space-y-4">
+            <input type="email" id="email" class="w-full border p-2" placeholder="Email" required>
+            <input type="password" id="password" class="w-full border p-2" placeholder="Password" required>
+            <button type="submit" class="w-full px-4 py-2 bg-purple-500 text-white rounded">Sign In</button>
+        </form>
+        <p id="login-error" class="text-red-500 mt-4 hidden"></p>
+    </div>
+    <%- include('partials/footer') %>
+    <script>
+        document.getElementById('menu-btn').addEventListener('click', () => {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        });
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                alert('Logged in as ' + data.user.email);
+            } else {
+                document.getElementById('login-error').textContent = 'Login failed';
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
