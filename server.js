@@ -122,7 +122,17 @@ const rewardInventoryUpdateSchema = Joi.object({
 });
 
 app.get('/', (req, res) => {
-  res.render('index');
+  let userId = null;
+  const token = req.cookies.token;
+  if (token) {
+    try {
+      const user = jwt.verify(token, JWT_SECRET);
+      userId = user.id;
+    } catch (err) {
+      // ignore invalid token
+    }
+  }
+  res.render('index', { userId });
 });
 
 app.get('/login', (req, res) => {

@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
 </head>
-<body class="text-gray-700 antialiased">
+<body class="text-gray-700 antialiased" data-user-id="<%= userId || '' %>">
     <%- include('partials/nav') %>
     <section class="pt-24 pb-16">
         <div class="max-w-7xl mx-auto px-4">
@@ -30,7 +30,9 @@
 
         // Load progress dynamically
         const ctx = document.getElementById('activity-chart').getContext('2d');
-        fetch('/api/progress?user_id=1').then(res => res.json()).then(data => {
+        const userId = document.body.dataset.userId;
+        if (userId) {
+        fetch(`/api/progress?user_id=${userId}`).then(res => res.json()).then(data => {
             const weekly = data.weekly ? JSON.parse(data.weekly) : [0,0,0,0,0,0,0];
             new Chart(ctx, {
                 type: 'line',
@@ -48,11 +50,13 @@
                 options: { plugins: { legend: { display: false } } }
             });
         });
+        }
 
         // Modal logic
         const modal = document.getElementById('challenge-modal');
         document.getElementById('show-challenges').addEventListener('click', () => {
-            fetch('/api/challenges?user_id=1').then(res => res.json()).then(items => {
+            if (!userId) return;
+            fetch(`/api/challenges?user_id=${userId}`).then(res => res.json()).then(items => {
                 const list = document.getElementById('challenge-list');
                 list.innerHTML = '';
                 items.forEach(c => {
