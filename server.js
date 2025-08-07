@@ -9,14 +9,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 
 app.use(express.json());
 
-// Ensure Users table exists
+// Ensure Users table exists and contains admin flag
 const createTable = `CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   email TEXT UNIQUE,
   name TEXT,
-  password TEXT
+  password TEXT,
+  is_admin INTEGER DEFAULT 0
 )`;
 db.run(createTable);
+db.run(`ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0`, err => {
+  if (err && !/duplicate column/.test(err.message)) {
+    console.error('Failed adding is_admin column', err);
+  }
+});
 
 // Additional tables for assessments, progress, challenges and rewards
 const createAssessments = `CREATE TABLE IF NOT EXISTS assessments (
@@ -60,6 +66,38 @@ const createRewards = `CREATE TABLE IF NOT EXISTS rewards (
 )`;
 db.run(createRewards);
 
+const createInventory = `CREATE TABLE IF NOT EXISTS reward_inventory (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT,
+  points INTEGER,
+  quantity INTEGER
+)`;
+db.run(createInventory);
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Missing token' });
+  }
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+function requireAdmin(req, res, next) {
+  authenticateToken(req, res, () => {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+  });
+}
+
 // Register endpoint
 app.post('/api/auth/register', (req, res) => {
   const { email, password, name } = req.body;
@@ -67,15 +105,15 @@ app.post('/api/auth/register', (req, res) => {
     return res.status(400).json({ error: 'Email and password required' });
   }
   const hashed = bcrypt.hashSync(password, 10);
-  const stmt = `INSERT INTO users (email, name, password) VALUES (?, ?, ?)`;
-  db.run(stmt, [email, name || '' , hashed], function(err) {
+  const stmt = `INSERT INTO users (email, name, password, is_admin) VALUES (?, ?, ?, 0)`;
+  db.run(stmt, [email, name || '', hashed], function (err) {
     if (err) {
       if (err.code === 'SQLITE_CONSTRAINT') {
         return res.status(400).json({ error: 'User already exists' });
       }
       return res.status(500).json({ error: 'Database error' });
     }
-    const user = { id: this.lastID, email, name: name || '' };
+    const user = { id: this.lastID, email, name: name || '', is_admin: 0 };
     const token = jwt.sign(user, JWT_SECRET, { expiresIn: '1h' });
     res.json({ token, user });
   });
@@ -99,7 +137,12 @@ app.post('/api/auth/login', (req, res) => {
     if (!match) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    const user = { id: row.id, email: row.email, name: row.name };
+    const user = {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      is_admin: row.is_admin || 0,
+    };
     const token = jwt.sign(user, JWT_SECRET, { expiresIn: '1h' });
     res.json({ token, user });
   });
@@ -230,6 +273,144 @@ app.get('/api/rewards', (req, res) => {
     const points = rows.reduce((sum, r) => sum + (r.points || 0), 0);
     res.json({ points, rewards: rows });
   });
+});
+
+// --- Admin: Users ---
+app.get('/api/admin/users', requireAdmin, (req, res) => {
+  db.all(`SELECT id, email, name, is_admin FROM users`, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.put('/api/admin/users/:id', requireAdmin, (req, res) => {
+  const { name, is_admin } = req.body;
+  const stmt = `UPDATE users SET name = COALESCE(?, name), is_admin = COALESCE(?, is_admin) WHERE id = ?`;
+  db.run(
+    stmt,
+    [name, typeof is_admin === 'number' ? is_admin : null, req.params.id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json({ updated: this.changes });
+    }
+  );
+});
+
+app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
+  db.run(`DELETE FROM users WHERE id = ?`, [req.params.id], function (err) {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ deleted: this.changes });
+  });
+});
+
+// --- Admin: Challenges ---
+app.get('/api/admin/challenges', requireAdmin, (req, res) => {
+  db.all(`SELECT * FROM challenges`, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/api/admin/challenges', requireAdmin, (req, res) => {
+  const { user_id, title, description, progress, goal } = req.body;
+  if (!user_id || !title) {
+    return res.status(400).json({ error: 'user_id and title required' });
+  }
+  const stmt =
+    `INSERT INTO challenges (user_id, title, description, progress, goal) VALUES (?, ?, ?, ?, ?)`;
+  db.run(
+    stmt,
+    [user_id, title, description || '', progress || 0, goal || 0],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json({ id: this.lastID });
+    }
+  );
+});
+
+app.put('/api/admin/challenges/:id', requireAdmin, (req, res) => {
+  const { title, description, progress, goal } = req.body;
+  const stmt =
+    `UPDATE challenges SET title = COALESCE(?, title), description = COALESCE(?, description), progress = COALESCE(?, progress), goal = COALESCE(?, goal) WHERE id = ?`;
+  db.run(
+    stmt,
+    [title, description, progress, goal, req.params.id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json({ updated: this.changes });
+    }
+  );
+});
+
+app.delete('/api/admin/challenges/:id', requireAdmin, (req, res) => {
+  db.run(`DELETE FROM challenges WHERE id = ?`, [req.params.id], function (err) {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ deleted: this.changes });
+  });
+});
+
+// --- Admin: Reward inventory ---
+app.get('/api/admin/reward-inventory', requireAdmin, (req, res) => {
+  db.all(`SELECT * FROM reward_inventory`, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/api/admin/reward-inventory', requireAdmin, (req, res) => {
+  const { title, points, quantity } = req.body;
+  if (!title || typeof points !== 'number') {
+    return res.status(400).json({ error: 'title and points required' });
+  }
+  const stmt =
+    `INSERT INTO reward_inventory (title, points, quantity) VALUES (?, ?, ?)`;
+  db.run(stmt, [title, points, quantity || 0], function (err) {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+app.put('/api/admin/reward-inventory/:id', requireAdmin, (req, res) => {
+  const { title, points, quantity } = req.body;
+  const stmt =
+    `UPDATE reward_inventory SET title = COALESCE(?, title), points = COALESCE(?, points), quantity = COALESCE(?, quantity) WHERE id = ?`;
+  db.run(stmt, [title, points, quantity, req.params.id], function (err) {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ updated: this.changes });
+  });
+});
+
+app.delete('/api/admin/reward-inventory/:id', requireAdmin, (req, res) => {
+  db.run(
+    `DELETE FROM reward_inventory WHERE id = ?`,
+    [req.params.id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json({ deleted: this.changes });
+    }
+  );
 });
 
 const PORT = process.env.PORT || 3000;
