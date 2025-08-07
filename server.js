@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
@@ -12,15 +13,17 @@ const Joi = require('joi');
 const xss = require('xss');
 
 const app = express();
-const db = new sqlite3.Database('users.db');
+const DB_FILE = process.env.DB_FILE || 'users.db';
+const db = new sqlite3.Database(DB_FILE);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
+const FRONTEND_DIR = process.env.FRONTEND_DIR || 'improved-website-v14';
 
 app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-app.use(express.static(path.join(__dirname, 'improved-website-v14')));
+app.use(express.static(path.join(__dirname, FRONTEND_DIR)));
 app.use(csrf({ cookie: true }));
 app.use((req, res, next) => {
   res.cookie('XSRF-TOKEN', req.csrfToken(), {
