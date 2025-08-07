@@ -176,37 +176,41 @@
             document.getElementById('mobile-menu').classList.toggle('hidden');
         });
 
-        // Load points from localStorage or set default
-        let points = parseInt(localStorage.getItem('userPoints') || '0');
-        document.getElementById('points-balance').textContent = points;
+        // Load points from backend
+        let points = 0;
+        const userId = localStorage.getItem('ahelpUserId') || 1;
+        async function loadPoints() {
+            try {
+                const res = await fetch(`/api/rewards?user_id=${userId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    points = data.points;
+                    document.getElementById('points-balance').textContent = points;
+                }
+            } catch (e) {
+                console.error('Failed to load points', e);
+            }
+        }
+        loadPoints();
 
         // Redeem button click handler
         document.querySelectorAll('.redeem-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const cost = parseInt(btn.getAttribute('data-cost'));
                 if (points >= cost) {
-                    points -= cost;
-                    localStorage.setItem('userPoints', points);
-                    document.getElementById('points-balance').textContent = points;
-                    // Determine reward name based on cost
-                    let rewardName;
-                    if (cost === 250) rewardName = 'Yoga Mat';
-                    else if (cost === 500) rewardName = 'Fitness Tracker';
-                    else if (cost === 750) rewardName = 'Gym Membership';
-                    // Record redemption in analytics log
+                    const title = btn.parentElement.querySelector('h3').textContent;
                     try {
-                        const log = JSON.parse(localStorage.getItem('redemptionLog')) || [];
-                        log.push({
-                            user: localStorage.getItem('userEmail') || 'guest@ahelp.com',
-                            reward: rewardName,
-                            cost: cost,
-                            date: new Date().toISOString()
+                        await fetch('/api/rewards', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ user_id: userId, title, points: -cost })
                         });
-                        localStorage.setItem('redemptionLog', JSON.stringify(log));
+                        points -= cost;
+                        document.getElementById('points-balance').textContent = points;
+                        alert('Redemption successful!');
                     } catch (e) {
-                        // ignore JSON errors
+                        console.error('Redemption failed', e);
                     }
-                    alert('Redemption successful!');
                 } else {
                     alert('Not enough points to redeem this reward.');
                 }

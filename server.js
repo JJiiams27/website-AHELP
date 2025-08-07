@@ -18,6 +18,48 @@ const createTable = `CREATE TABLE IF NOT EXISTS users (
 )`;
 db.run(createTable);
 
+// Additional tables for assessments, progress, challenges and rewards
+const createAssessments = `CREATE TABLE IF NOT EXISTS assessments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  data TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(user_id) REFERENCES users(id)
+)`;
+db.run(createAssessments);
+
+const createProgress = `CREATE TABLE IF NOT EXISTS progress (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER UNIQUE,
+  weekly TEXT,
+  monthly TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(user_id) REFERENCES users(id)
+)`;
+db.run(createProgress);
+
+const createChallenges = `CREATE TABLE IF NOT EXISTS challenges (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  title TEXT,
+  description TEXT,
+  progress INTEGER,
+  goal INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(user_id) REFERENCES users(id)
+)`;
+db.run(createChallenges);
+
+const createRewards = `CREATE TABLE IF NOT EXISTS rewards (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  title TEXT,
+  points INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(user_id) REFERENCES users(id)
+)`;
+db.run(createRewards);
+
 // Register endpoint
 app.post('/api/auth/register', (req, res) => {
   const { email, password, name } = req.body;
@@ -60,6 +102,133 @@ app.post('/api/auth/login', (req, res) => {
     const user = { id: row.id, email: row.email, name: row.name };
     const token = jwt.sign(user, JWT_SECRET, { expiresIn: '1h' });
     res.json({ token, user });
+  });
+});
+
+// --- Assessments ---
+app.post('/api/assessments', (req, res) => {
+  const { user_id, data } = req.body;
+  if (!user_id || !data) {
+    return res.status(400).json({ error: 'user_id and data required' });
+  }
+  const stmt = `INSERT INTO assessments (user_id, data) VALUES (?, ?)`;
+  db.run(stmt, [user_id, JSON.stringify(data)], function (err) {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+app.get('/api/assessments', (req, res) => {
+  const userId = req.query.user_id;
+  const query = userId
+    ? `SELECT * FROM assessments WHERE user_id = ?`
+    : `SELECT * FROM assessments`;
+  const params = userId ? [userId] : [];
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows.map(r => ({ ...r, data: JSON.parse(r.data) })));
+  });
+});
+
+// --- Progress ---
+app.post('/api/progress', (req, res) => {
+  const { user_id, weekly, monthly } = req.body;
+  if (!user_id) {
+    return res.status(400).json({ error: 'user_id required' });
+  }
+  const stmt = `INSERT INTO progress (user_id, weekly, monthly)
+               VALUES (?, ?, ?)
+               ON CONFLICT(user_id) DO UPDATE SET
+                 weekly = excluded.weekly,
+                 monthly = excluded.monthly`;
+  db.run(stmt, [user_id, JSON.stringify(weekly || []), JSON.stringify(monthly || [])], function (err) {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+app.get('/api/progress', (req, res) => {
+  const userId = req.query.user_id;
+  if (!userId) {
+    return res.status(400).json({ error: 'user_id required' });
+  }
+  const query = `SELECT weekly, monthly FROM progress WHERE user_id = ?`;
+  db.get(query, [userId], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    if (!row) {
+      return res.json({ weekly: [], monthly: [] });
+    }
+    res.json({
+      weekly: JSON.parse(row.weekly || '[]'),
+      monthly: JSON.parse(row.monthly || '[]')
+    });
+  });
+});
+
+// --- Challenges ---
+app.post('/api/challenges', (req, res) => {
+  const { user_id, title, description, progress, goal } = req.body;
+  if (!user_id || !title) {
+    return res.status(400).json({ error: 'user_id and title required' });
+  }
+  const stmt = `INSERT INTO challenges (user_id, title, description, progress, goal) VALUES (?, ?, ?, ?, ?)`;
+  db.run(stmt, [user_id, title, description || '', progress || 0, goal || 0], function (err) {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+app.get('/api/challenges', (req, res) => {
+  const userId = req.query.user_id;
+  const query = userId
+    ? `SELECT * FROM challenges WHERE user_id = ?`
+    : `SELECT * FROM challenges`;
+  const params = userId ? [userId] : [];
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+// --- Rewards ---
+app.post('/api/rewards', (req, res) => {
+  const { user_id, title, points } = req.body;
+  if (!user_id || !title || typeof points !== 'number') {
+    return res.status(400).json({ error: 'user_id, title and points required' });
+  }
+  const stmt = `INSERT INTO rewards (user_id, title, points) VALUES (?, ?, ?)`;
+  db.run(stmt, [user_id, title, points], function (err) {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+app.get('/api/rewards', (req, res) => {
+  const userId = req.query.user_id;
+  if (!userId) {
+    return res.status(400).json({ error: 'user_id required' });
+  }
+  const query = `SELECT * FROM rewards WHERE user_id = ?`;
+  db.all(query, [userId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    const points = rows.reduce((sum, r) => sum + (r.points || 0), 0);
+    res.json({ points, rewards: rows });
   });
 });
 

@@ -300,6 +300,7 @@
                         const data = await res.json();
                         localStorage.setItem('authToken', data.token);
                         localStorage.setItem('ahelpUserName', data.user.name || name);
+                        localStorage.setItem('ahelpUserId', data.user.id);
                     }
                 } catch (err) {
                     console.error('Registration failed', err);
@@ -393,6 +394,33 @@
                 localStorage.setItem('ahelpHraDate', new Date().toISOString());
             } catch (err) {
                 console.error('Could not store recommendations in localStorage:', err);
+            }
+
+            // Persist assessment to backend
+            try {
+                const userId = localStorage.getItem('ahelpUserId');
+                await fetch('/api/assessments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        data: {
+                            exercise,
+                            fruitsVeg,
+                            water,
+                            tobacco,
+                            alcohol,
+                            sleep,
+                            stress,
+                            checkup,
+                            chronic,
+                            chronicDetails,
+                            recommendations
+                        }
+                    })
+                });
+            } catch (err) {
+                console.error('Assessment save failed', err);
             }
             // Show results section
             document.getElementById('results').classList.remove('hidden');

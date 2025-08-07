@@ -114,61 +114,8 @@
 
     <!-- Challenges section -->
     <section class="py-12">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <!-- Card 1 -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-2">Step-Up Challenge</h2>
-                <p class="text-gray-600 mb-4">Hit 50,000 steps this week to earn bonus points.</p>
-                <div class="w-full bg-gray-200 h-4 rounded-full mb-3">
-                    <div class="bg-purple-500 h-full rounded-full" style="width: 60%;"></div>
-                </div>
-                <p class="text-sm text-gray-500">60% complete</p>
-            </div>
-            <!-- Card 2 -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-2">Hydration Hero</h2>
-                <p class="text-gray-600 mb-4">Drink eight glasses of water daily for 7 days.</p>
-                <div class="w-full bg-gray-200 h-4 rounded-full mb-3">
-                    <div class="bg-orange-400 h-full rounded-full" style="width: 40%;"></div>
-                </div>
-                <p class="text-sm text-gray-500">40% complete</p>
-            </div>
-            <!-- Card 3 -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-2">Mindful Minutes</h2>
-                <p class="text-gray-600 mb-4">Meditate for 15 minutes each day.</p>
-                <div class="w-full bg-gray-200 h-4 rounded-full mb-3">
-                    <div class="bg-green-400 h-full rounded-full" style="width: 80%;"></div>
-                </div>
-                <p class="text-sm text-gray-500">80% complete</p>
-            </div>
-            <!-- Card 4 -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-2">Fruit & Veggie Feast</h2>
-                <p class="text-gray-600 mb-4">Eat five servings of fruits/vegetables daily.</p>
-                <div class="w-full bg-gray-200 h-4 rounded-full mb-3">
-                    <div class="bg-yellow-400 h-full rounded-full" style="width: 25%;"></div>
-                </div>
-                <p class="text-sm text-gray-500">25% complete</p>
-            </div>
-            <!-- Card 5 -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-2">Sleep Soundly</h2>
-                <p class="text-gray-600 mb-4">Get 7–8 hours of sleep for a full week.</p>
-                <div class="w-full bg-gray-200 h-4 rounded-full mb-3">
-                    <div class="bg-blue-400 h-full rounded-full" style="width: 50%;"></div>
-                </div>
-                <p class="text-sm text-gray-500">50% complete</p>
-            </div>
-            <!-- Card 6 -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-2">Sugar-Free Sprint</h2>
-                <p class="text-gray-600 mb-4">Avoid processed sugar for 5 days.</p>
-                <div class="w-full bg-gray-200 h-4 rounded-full mb-3">
-                    <div class="bg-red-400 h-full rounded-full" style="width: 10%;"></div>
-                </div>
-                <p class="text-sm text-gray-500">10% complete</p>
-            </div>
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div id="challenges-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
         </div>
     </section>
 
@@ -208,6 +155,34 @@
         document.getElementById('mobile-btn').addEventListener('click', () => {
             document.getElementById('mobile-menu').classList.toggle('hidden');
         });
+    </script>
+    <!-- Load challenges from API -->
+    <script>
+        async function loadChallenges() {
+            const userId = localStorage.getItem('ahelpUserId') || 1;
+            try {
+                const res = await fetch(`/api/challenges?user_id=${userId}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const container = document.getElementById('challenges-container');
+                data.forEach(ch => {
+                    const percent = ch.goal ? Math.min(100, Math.floor((ch.progress / ch.goal) * 100)) : 0;
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-6 rounded-lg shadow-md';
+                    card.innerHTML = `
+                        <h2 class="text-xl font-semibold mb-2">${ch.title}</h2>
+                        <p class="text-gray-600 mb-4">${ch.description || ''}</p>
+                        <div class="w-full bg-gray-200 h-4 rounded-full mb-3">
+                            <div class="bg-purple-500 h-full rounded-full" style="width: ${percent}%;"></div>
+                        </div>
+                        <p class="text-sm text-gray-500">${percent}% complete</p>`;
+                    container.appendChild(card);
+                });
+            } catch (e) {
+                console.error('Failed to load challenges', e);
+            }
+        }
+        loadChallenges();
     </script>
     <!-- Back to Top Button -->
     <button id="back-to-top" class="hidden fixed bottom-6 right-6 p-3 rounded-full bg-purple-500 text-white shadow-lg" aria-label="Back to top">↑</button>

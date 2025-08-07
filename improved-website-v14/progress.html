@@ -181,83 +181,102 @@
             menu.classList.toggle('hidden');
         });
         
-        // Data for the weekly activity chart
         const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
-        const weeklyChart = new Chart(weeklyCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                datasets: [{
-                    label: 'Minutes Active',
-                    data: [30, 45, 60, 35, 50, 70, 55],
-                    backgroundColor: 'rgba(168, 85, 247, 0.5)',
-                    borderColor: 'rgba(168, 85, 247, 1)',
-                    borderWidth: 1,
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Minutes'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Day of Week'
-                        }
-                    }
-                },
-                plugins: {
-                    legend: { display: false },
-                    title: { display: false }
-                }
-            }
-        });
-        
-        // Data for the monthly steps chart
         const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-        const monthlyChart = new Chart(monthlyCtx, {
-            type: 'line',
-            data: {
-                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                datasets: [{
-                    label: 'Steps',
-                    data: [20000, 24000, 22000, 26000],
-                    backgroundColor: 'rgba(251, 146, 60, 0.5)',
-                    borderColor: 'rgba(251, 146, 60, 1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 4,
-                    pointBackgroundColor: 'rgba(251, 146, 60, 1)'
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Steps'
+        const weeklyLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const monthlyLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+
+        async function loadProgress() {
+            const userId = localStorage.getItem('ahelpUserId') || 1;
+            let weekly = [0, 0, 0, 0, 0, 0, 0];
+            let monthly = [0, 0, 0, 0];
+            try {
+                const res = await fetch(`/api/progress?user_id=${userId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.weekly && data.weekly.length) weekly = data.weekly;
+                    if (data.monthly && data.monthly.length) monthly = data.monthly;
+                }
+            } catch (e) {
+                console.error('Failed to load progress', e);
+            }
+
+            new Chart(weeklyCtx, {
+                type: 'bar',
+                data: {
+                    labels: weeklyLabels,
+                    datasets: [{
+                        label: 'Minutes Active',
+                        data: weekly,
+                        backgroundColor: 'rgba(168, 85, 247, 0.5)',
+                        borderColor: 'rgba(168, 85, 247, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Minutes'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Day of Week'
+                            }
                         }
                     },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Week of Month'
-                        }
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: false }
                     }
-                },
-                plugins: {
-                    legend: { display: false },
-                    title: { display: false }
                 }
-            }
-        });
+            });
+
+            new Chart(monthlyCtx, {
+                type: 'line',
+                data: {
+                    labels: monthlyLabels,
+                    datasets: [{
+                        label: 'Steps',
+                        data: monthly,
+                        backgroundColor: 'rgba(251, 146, 60, 0.5)',
+                        borderColor: 'rgba(251, 146, 60, 1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgba(251, 146, 60, 1)'
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Steps'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Week of Month'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: false }
+                    }
+                }
+            });
+        }
+
+        loadProgress();
     </script>
     <!-- Back to Top Button -->
     <button id="back-to-top" class="hidden fixed bottom-6 right-6 p-3 rounded-full bg-purple-500 text-white shadow-lg" aria-label="Back to top">↑</button>
