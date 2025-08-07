@@ -23,11 +23,6 @@
     <%- include('partials/footer') %>
     <%- include('partials/modal') %>
     <script>
-        // Mobile navigation toggle
-        document.getElementById('menu-btn').addEventListener('click', () => {
-            document.getElementById('mobile-menu').classList.toggle('hidden');
-        });
-
         // Load progress dynamically
         const ctx = document.getElementById('activity-chart').getContext('2d');
         fetch('/api/progress?user_id=1').then(res => res.json()).then(data => {
