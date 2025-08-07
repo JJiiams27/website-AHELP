@@ -11,12 +11,20 @@ const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
 const Joi = require('joi');
 const xss = require('xss');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const DB_FILE = process.env.DB_FILE || 'users.db';
 const db = new sqlite3.Database(DB_FILE);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 const FRONTEND_DIR = process.env.FRONTEND_DIR || 'improved-website-v14';
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many requests, please try again later.'
+});
 
 app.use(helmet());
 app.use(express.json());
@@ -219,7 +227,7 @@ function requireAdmin(req, res, next) {
 }
 
 // Register endpoint
-app.post('/api/auth/register', validate(registerSchema), (req, res) => {
+app.post('/api/auth/register', authLimiter, validate(registerSchema), (req, res) => {
   const { email, password, name } = req.body;
   const hashed = bcrypt.hashSync(password, 10);
   const stmt = `INSERT INTO users (email, name, password, is_admin) VALUES (?, ?, ?, 0)`;
@@ -243,7 +251,7 @@ app.post('/api/auth/register', validate(registerSchema), (req, res) => {
 });
 
 // Login endpoint
-app.post('/api/auth/login', validate(loginSchema), (req, res) => {
+app.post('/api/auth/login', authLimiter, validate(loginSchema), (req, res) => {
   const { email, password } = req.body;
   const query = `SELECT * FROM users WHERE email = ?`;
   db.get(query, [email], (err, row) => {
