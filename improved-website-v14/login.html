@@ -183,6 +183,7 @@
                 localStorage.setItem('authToken', data.token);
                 const name = data.user.name || email.split('@')[0];
                 localStorage.setItem('ahelpUserName', name);
+                localStorage.setItem('ahelpUserId', data.user.id);
                 window.location.href = 'dashboard.html';
             } catch (err) {
                 alert(err.message);
@@ -206,6 +207,7 @@
                 const data = await res.json();
                 localStorage.setItem('authToken', data.token);
                 localStorage.setItem('ahelpUserName', data.user.name || firstName);
+                localStorage.setItem('ahelpUserId', data.user.id);
                 window.location.href = 'dashboard.html';
             } catch (err) {
                 alert(err.message);
