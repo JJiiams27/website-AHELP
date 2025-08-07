@@ -20,9 +20,6 @@
     </div>
     <%- include('partials/footer') %>
     <script>
-        document.getElementById('menu-btn').addEventListener('click', () => {
-            document.getElementById('mobile-menu').classList.toggle('hidden');
-        });
         const getCsrfToken = () => {
             const token = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
             return token ? token.split('=')[1] : '';
