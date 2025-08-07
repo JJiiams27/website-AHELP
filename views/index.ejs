@@ -6,6 +6,7 @@
     <title>AHELP – Empower Your Wellness Journey</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
 </head>
 <body class="text-gray-700 antialiased">
     <%- include('partials/nav') %>
@@ -56,7 +57,7 @@
                 list.innerHTML = '';
                 items.forEach(c => {
                     const li = document.createElement('li');
-                    li.textContent = c.title;
+                    li.innerHTML = DOMPurify.sanitize(c.title);
                     list.appendChild(li);
                 });
                 modal.classList.remove('hidden');
