@@ -31,7 +31,7 @@
         // Load progress dynamically
         const ctx = document.getElementById('activity-chart').getContext('2d');
         fetch('/api/progress?user_id=1').then(res => res.json()).then(data => {
-            const weekly = data.weekly ? JSON.parse(data.weekly) : [0,0,0,0,0,0,0];
+            const weekly = Array.isArray(data.weekly) && data.weekly.length ? data.weekly : [0,0,0,0,0,0,0];
             new Chart(ctx, {
                 type: 'line',
                 data: {
